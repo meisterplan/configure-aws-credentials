@@ -260,7 +260,7 @@ let defaultSleep = function (ms) {
 let sleep = defaultSleep;
 
 // retryAndBackoff retries with exponential backoff the promise if the error isRetryable upto maxRetries time.
-const retryAndBackoff = async (fn, isRetryable, retries = 0, maxRetries = 12, base = 50) => {
+const retryAndBackoff = async (fn, isRetryable, retries = 0, maxRetries = 20) => {
   try {
     return await fn();
   } catch (err) {
@@ -268,12 +268,12 @@ const retryAndBackoff = async (fn, isRetryable, retries = 0, maxRetries = 12, ba
       throw err;
     }
     // It's retryable, so sleep and retry.
-    await sleep(Math.random() * (Math.pow(2, retries) * base) );
+    await sleep(retries * 500);
     retries += 1;
     if (retries === maxRetries) {
       throw err;
     }
-    return await retryAndBackoff(fn, isRetryable, retries, maxRetries, base);
+    return await retryAndBackoff(fn, isRetryable, retries, maxRetries);
   }
 }
 
