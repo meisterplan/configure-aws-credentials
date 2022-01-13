@@ -267,8 +267,10 @@ const retryAndBackoff = async (fn, isRetryable, retries = 0, maxRetries = 20) =>
     if (!isRetryable) {
       throw err;
     }
+    const delay = retries * 500;
+    core.warning(`Retrieving credentials failed: ${err.message}. Retry (${retries+1}/${maxRetries}) in ${delay} ms.`)
     // It's retryable, so sleep and retry.
-    await sleep(retries * 500);
+    await sleep(delay);
     retries += 1;
     if (retries === maxRetries) {
       throw err;
