@@ -17,6 +17,7 @@ const ROLE_SESSION_NAME = 'GitHubActions';
 const REGION_REGEX = /^[a-z0-9-]+$/g;
 
 async function assumeRole(params) {
+  core.info("Assuming Role...");
   // Assume a role to get short-lived credentials using longer-lived credentials.
   const isDefined = i => !!i;
 
@@ -328,6 +329,8 @@ async function run() {
       throw new Error(`Region is not valid: ${region}`);
     }
 
+    core.info("Configuring AWS credentials...");
+
     exportRegion(region);
 
     // This wraps the logic for deciding if we should rely on the GH OIDC provider since we may need to reference
@@ -405,6 +408,8 @@ async function run() {
     }
   }
   catch (error) {
+    core.error("Global error occured when configuring credentials");
+    core.error(error);
     core.setFailed(error.message);
 
     const showStackTrace = process.env.SHOW_STACK_TRACE;

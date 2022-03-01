@@ -771,7 +771,7 @@ describe('Configure AWS Credentials', () => {
         });
 
         await assert.rejects(() => run());
-        expect(mockStsAssumeRoleWithWebIdentity).toHaveBeenCalledTimes(12)
+        expect(mockStsAssumeRoleWithWebIdentity).toHaveBeenCalledTimes(20)
     });
 
     test('role external ID provided', async () => {
