@@ -15,6 +15,7 @@ const ROLE_SESSION_NAME = 'GitHubActions';
 const REGION_REGEX = /^[a-z0-9-]+$/g;
 
 async function assumeRole(params) {
+  core.info("Assuming Role...");
   // Assume a role to get short-lived credentials using longer-lived credentials.
   const isDefined = i => !!i;
 
@@ -85,7 +86,7 @@ async function assumeRole(params) {
   }
 
   let assumeFunction = sts.assumeRole.bind(sts);
-  
+
   // These are customizations needed for the GH OIDC Provider
   if(isDefined(webIdentityToken)) {
     delete assumeRoleRequest.Tags;
@@ -110,8 +111,8 @@ async function assumeRole(params) {
     } catch(error) {
       throw new Error(`Web identity token file could not be read: ${error.message}`);
     }
-    
-  } 
+
+  }
 
   return assumeFunction(assumeRoleRequest)
     .promise()
@@ -281,6 +282,8 @@ async function run() {
       throw new Error(`Region is not valid: ${region}`);
     }
 
+    core.info("Configuring AWS credentials...");
+
     exportRegion(region);
 
     // This wraps the logic for deciding if we should rely on the GH OIDC provider since we may need to reference
@@ -305,7 +308,7 @@ async function run() {
 
       exportCredentials({accessKeyId, secretAccessKey, sessionToken});
     }
-    
+
     // Attempt to load credentials from the GitHub OIDC provider.
     // If a user provides an IAM Role Arn and DOESN'T provide an Access Key Id
     // The only way to assume the role is via GitHub's OIDC provider.
@@ -352,6 +355,8 @@ async function run() {
     }
   }
   catch (error) {
+    core.error("Global error occured when configuring credentials");
+    core.error(error);
     core.setFailed(error.message);
 
     const showStackTrace = process.env.SHOW_STACK_TRACE;
