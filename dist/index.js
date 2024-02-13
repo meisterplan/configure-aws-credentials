@@ -350,7 +350,7 @@ function verifyKeys(creds) {
 }
 exports.verifyKeys = verifyKeys;
 // Retries the promise with exponential backoff if the error isRetryable up to maxRetries time.
-async function retryAndBackoff(fn, isRetryable, maxRetries = 12, retries = 0, base = 50) {
+async function retryAndBackoff(fn, isRetryable, maxRetries = 20, retries = 0) {
     try {
         return await fn();
     }
@@ -358,13 +358,15 @@ async function retryAndBackoff(fn, isRetryable, maxRetries = 12, retries = 0, ba
         if (!isRetryable) {
             throw err;
         }
+        const delay = retries * 500;
+        core.warning(`Retrieving credentials failed: ${err.message}. Retry (${retries + 1}/${maxRetries}) in ${delay} ms.`);
         // It's retryable, so sleep and retry.
-        await sleep(Math.random() * (Math.pow(2, retries) * base));
+        await sleep(delay);
         retries += 1;
         if (retries >= maxRetries) {
             throw err;
         }
-        return await retryAndBackoff(fn, isRetryable, maxRetries, retries, base);
+        return await retryAndBackoff(fn, isRetryable, retries, maxRetries);
     }
 }
 exports.retryAndBackoff = retryAndBackoff;
