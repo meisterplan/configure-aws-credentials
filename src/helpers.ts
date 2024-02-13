@@ -114,9 +114,8 @@ export function verifyKeys(creds: Partial<Credentials> | undefined) {
 export async function retryAndBackoff<T>(
   fn: () => Promise<T>,
   isRetryable: boolean,
-  maxRetries = 12,
-  retries = 0,
-  base = 50
+  maxRetries = 20,
+  retries = 0
 ): Promise<T> {
   try {
     return await fn();
@@ -124,13 +123,17 @@ export async function retryAndBackoff<T>(
     if (!isRetryable) {
       throw err;
     }
+    const delay = retries * 500;
+    core.warning(
+      `Retrieving credentials failed: ${(err as any).message}. Retry (${retries + 1}/${maxRetries}) in ${delay} ms.`
+    );
     // It's retryable, so sleep and retry.
-    await sleep(Math.random() * (Math.pow(2, retries) * base));
+    await sleep(delay);
     retries += 1;
     if (retries >= maxRetries) {
       throw err;
     }
-    return await retryAndBackoff(fn, isRetryable, maxRetries, retries, base);
+    return await retryAndBackoff(fn, isRetryable, retries, maxRetries);
   }
 }
 
