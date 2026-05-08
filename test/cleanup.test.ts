@@ -1,35 +1,29 @@
 import * as core from '@actions/core';
+import { STSClient } from '@aws-sdk/client-sts';
+import { mockClient } from 'aws-sdk-client-mock';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from '../src/cleanup';
+import mocks from './mockinputs.test';
 
-const FAKE_ACCESS_KEY_ID = 'MY-AWS-ACCESS-KEY-ID';
-const FAKE_SECRET_ACCESS_KEY = 'MY-AWS-SECRET-ACCESS-KEY';
-const FAKE_SESSION_TOKEN = 'MY-AWS-SESSION-TOKEN';
-const FAKE_REGION = 'fake-region-1';
-const ACTION_ENVIRONMENT_VARIABLES = {
-  AWS_ACCESS_KEY_ID: FAKE_ACCESS_KEY_ID,
-  AWS_SECRET_ACCESS_KEY: FAKE_SECRET_ACCESS_KEY,
-  AWS_SESSION_TOKEN: FAKE_SESSION_TOKEN,
-  AWS_DEFAULT_REGION: FAKE_REGION,
-  AWS_REGION: FAKE_REGION,
-};
+vi.mock('@actions/core');
 
-describe('Configure AWS Credentials', () => {
-  const OLD_ENV = process.env;
+const mockedSTSClient = mockClient(STSClient);
 
+describe('Configure AWS Credentials cleanup', {}, () => {
   beforeEach(() => {
-    jest.resetModules();
-    jest.spyOn(core, 'exportVariable').mockImplementation();
-    jest.spyOn(core, 'setSecret').mockImplementation();
-    jest.spyOn(core, 'setOutput').mockImplementation();
-    jest.spyOn(core, 'setFailed').mockImplementation();
-    process.env = { ...OLD_ENV, ...ACTION_ENVIRONMENT_VARIABLES };
+    vi.resetAllMocks();
+    mockedSTSClient.reset();
+    vi.mocked(core.getInput).mockReturnValue('');
+    process.env = {
+      ...mocks.envs,
+      AWS_ACCESS_KEY_ID: 'CLEANUPTEST',
+      AWS_SECRET_ACCESS_KEY: 'CLEANUPTEST',
+      AWS_SESSION_TOKEN: 'CLEANUPTEST',
+      AWS_REGION: 'CLEANUPTEST',
+      AWS_DEFAULT_REGION: 'CLEANUPTEST',
+    };
   });
-
-  afterEach(() => {
-    process.env = OLD_ENV;
-  });
-
-  test('replaces AWS credential and region env vars with empty strings', () => {
+  it('replaces AWS credential and region environment variables with empty strings', {}, () => {
     cleanup();
     expect(core.setFailed).toHaveBeenCalledTimes(0);
     expect(core.exportVariable).toHaveBeenCalledTimes(5);
@@ -39,14 +33,36 @@ describe('Configure AWS Credentials', () => {
     expect(core.exportVariable).toHaveBeenCalledWith('AWS_DEFAULT_REGION', '');
     expect(core.exportVariable).toHaveBeenCalledWith('AWS_REGION', '');
   });
-
-  test('error is caught and fails the action', () => {
-    jest.spyOn(core, 'exportVariable').mockImplementation(() => {
-      throw new Error();
+  it('also clears AWS_PROFILE when aws-profile was set', {}, () => {
+    vi.mocked(core.getInput).mockImplementation((name: string) => {
+      if (name === 'aws-profile') return 'my-profile';
+      if (name === 'output-env-credentials') return 'true';
+      return '';
     });
-
     cleanup();
-
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(core.exportVariable).toHaveBeenCalledTimes(6);
+    expect(core.exportVariable).toHaveBeenCalledWith('AWS_PROFILE', '');
+  });
+  it('skips env cleanup when aws-profile is set without output-env-credentials', {}, () => {
+    vi.mocked(core.getInput).mockImplementation((name: string) => {
+      if (name === 'aws-profile') return 'my-profile';
+      return '';
+    });
+    cleanup();
+    expect(core.setFailed).toHaveBeenCalledTimes(0);
+    expect(core.exportVariable).toHaveBeenCalledTimes(0);
+  });
+  it('handles errors', {}, () => {
+    vi.mocked(core.exportVariable).mockImplementationOnce(() => {
+      throw new Error('Test error');
+    });
+    cleanup();
     expect(core.setFailed).toHaveBeenCalled();
+  });
+  it(`doesn't export credentials as empty env variables if asked not to`, {}, () => {
+    vi.mocked(core.getInput).mockImplementation(mocks.getInput(mocks.NO_ENV_CREDS_INPUTS));
+    cleanup();
+    expect(core.exportVariable).toHaveBeenCalledTimes(0);
   });
 });
